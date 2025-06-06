@@ -3,6 +3,8 @@ import numpy as np
 import pandas as pd
 import pytesseract
 from ultralytics import YOLO
+import imutils
+from skimage import measure
 
 pytesseract.pytesseract.tesseract_cmd = r'C:\Users\william_tan\AppData\Local\Programs\Tesseract-OCR\tesseract.exe'  # Update this path if your Tesseract is installed elsewhere
 
@@ -48,6 +50,35 @@ def get_vehicle_color(vehicle_img):
     else:
         return "Other"
 
+def find_plate_region(plate_img):
+    # Step 1: Blur and grayscale
+    img_blur = cv2.GaussianBlur(plate_img, (7, 7), 0)
+    gray = cv2.cvtColor(img_blur, cv2.COLOR_BGR2GRAY)
+    # Step 2: Sobel vertical edge detection
+    sobelx = cv2.Sobel(gray, cv2.CV_8U, 1, 0, ksize=3)
+    # Step 3: Otsu's thresholding
+    _, threshold_img = cv2.threshold(sobelx, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    # Step 4: Morphological closing
+    element = cv2.getStructuringElement(cv2.MORPH_RECT, (22, 3))
+    morph_img = cv2.morphologyEx(threshold_img, cv2.MORPH_CLOSE, element)
+    # Step 5: Find contours
+    contours, _ = cv2.findContours(morph_img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+    plate_candidate = None
+    max_area = 0
+    for cnt in contours:
+        x, y, w, h = cv2.boundingRect(cnt)
+        area = w * h
+        ratio = w / float(h)
+        if 4500 < area < 30000 and 2.5 < ratio < 6:
+            if area > max_area:
+                max_area = area
+                plate_candidate = (x, y, w, h)
+    if plate_candidate:
+        x, y, w, h = plate_candidate
+        return plate_img[y:y+h, x:x+w]
+    else:
+        return plate_img  # fallback
+
 def main(video_path, output_excel):
     cap = cv2.VideoCapture(video_path)
     model = YOLO('yolov8n.pt')
@@ -60,27 +91,25 @@ def main(video_path, output_excel):
         vehicles = detect_vehicles(frame, model)
         # Draw bounding boxes and labels for each detected vehicle
         for ((x, y, w, h), vehicle_type) in vehicles:
+            # Only process cars for number plate detection/recognition
+            if vehicle_type != 'car':
+                continue
             # Draw bounding box with color based on vehicle type
-            if vehicle_type == 'car':
-                color = (0, 255, 0)      # Green
-            elif vehicle_type == 'motorcycle':
-                color = (255, 0, 0)      # Blue
-            elif vehicle_type == 'bus':
-                color = (0, 255, 255)    # Yellow
-            elif vehicle_type == 'truck':
-                color = (0, 0, 255)      # Red
-            else:
-                color = (255, 255, 255)  # White (fallback)
+            color = (0, 255, 0)      # Green
             cv2.rectangle(frame, (x, y), (x + w, y + h), color, 2)
             # Draw label
             label = f"{vehicle_type}"
             cv2.putText(frame, label, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
             vehicle_img = frame[y:y+h, x:x+w]
-            # Plate localization: fallback to lower part of vehicle as plate_img
-            plate_img = vehicle_img[int(vehicle_img.shape[0]*0.6):, int(vehicle_img.shape[1]*0.2):int(vehicle_img.shape[1]*0.8)]
-            # Only run OCR if plate_img is not empty
-            if plate_img.size > 0:
-                plate_text = recognize_plate(plate_img)
+            # Use bottom half of vehicle_img for plate detection
+            vh, vw = vehicle_img.shape[:2]
+            bottom_half = vehicle_img[vh//2:]
+            # Use GeeksforGeeks method to find plate region
+            plate_region = find_plate_region(bottom_half)
+            # Only run OCR if a plate region was detected (not fallback)
+            if plate_region.shape[0] != bottom_half.shape[0] or plate_region.shape[1] != bottom_half.shape[1]:
+                cv2.imshow('Plate Region Before OCR', plate_region)
+                plate_text = recognize_plate(plate_region)
             else:
                 plate_text = ""
             vehicle_color = get_vehicle_color(vehicle_img)

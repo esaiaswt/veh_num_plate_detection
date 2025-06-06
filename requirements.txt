@@ -5,3 +5,5 @@ openpyxl
 easyocr
 ultralytics
 pytesseract
+scikit-image
+imutils
