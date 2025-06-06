@@ -108,8 +108,10 @@ def main(video_path, output_excel):
             plate_region = find_plate_region(bottom_half)
             # Only run OCR if a plate region was detected (not fallback)
             if plate_region.shape[0] != bottom_half.shape[0] or plate_region.shape[1] != bottom_half.shape[1]:
-                cv2.imshow('Plate Region Before OCR', plate_region)
-                plate_text = recognize_plate(plate_region)
+                # Magnify the detected plate region 3x before OCR
+                plate_region_magnified = cv2.resize(plate_region, None, fx=3, fy=3, interpolation=cv2.INTER_CUBIC)
+                cv2.imshow('Plate Region Before OCR', plate_region_magnified)
+                plate_text = recognize_plate(plate_region_magnified)
             else:
                 plate_text = ""
             vehicle_color = get_vehicle_color(vehicle_img)
