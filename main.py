@@ -91,28 +91,37 @@ def main(video_path, output_excel):
         vehicles = detect_vehicles(frame, model)
         # Draw bounding boxes and labels for each detected vehicle
         for ((x, y, w, h), vehicle_type) in vehicles:
-            # Only process cars for number plate detection/recognition
+            # Only process trucks for number plate detection/recognition
             if vehicle_type != 'car':
                 continue
             # Draw bounding box with color based on vehicle type
-            color = (0, 255, 0)      # Green
+            color = (0, 0, 255)      # Red for truck
             cv2.rectangle(frame, (x, y), (x + w, y + h), color, 2)
             # Draw label
             label = f"{vehicle_type}"
             cv2.putText(frame, label, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
             vehicle_img = frame[y:y+h, x:x+w]
-            # Use bottom half of vehicle_img for plate detection
-            vh, vw = vehicle_img.shape[:2]
-            bottom_half = vehicle_img[vh//2:]
-            # Use GeeksforGeeks method to find plate region
-            plate_region = find_plate_region(bottom_half)
+            # Use the full detection box of the truck for plate detection
+            plate_region = find_plate_region(vehicle_img)
             # Only run OCR if a plate region was detected (not fallback)
-            if plate_region.shape[0] != bottom_half.shape[0] or plate_region.shape[1] != bottom_half.shape[1]:
+            if plate_region.shape[0] != vehicle_img.shape[0] or plate_region.shape[1] != vehicle_img.shape[1]:
                 # Magnify the detected plate region 3x before OCR
                 plate_region_magnified = cv2.resize(plate_region, None, fx=3, fy=3, interpolation=cv2.INTER_CUBIC)
+                # Only show the process image window when a truck is detected
                 cv2.imshow('Plate Region Before OCR', plate_region_magnified)
                 plate_text = recognize_plate(plate_region_magnified)
+                # Save the detected plate region as PNG only if OCR output is alphanumeric
+                if any(c.isalnum() for c in plate_text):
+                    save_path = f"detected_plate_{frame_num}.png"
+                    cv2.imwrite(save_path, plate_region_magnified)
+                # Fast forward: skip to next frame quickly when truck is detected
+                key = cv2.waitKey(10) & 0xFF  # 10ms wait instead of 1ms
             else:
+                # Hide the process image window if no truck/plate is detected
+                try:
+                    cv2.destroyWindow('Plate Region Before OCR')
+                except cv2.error:
+                    pass
                 plate_text = ""
             vehicle_color = get_vehicle_color(vehicle_img)
             results.append({
@@ -126,9 +135,22 @@ def main(video_path, output_excel):
             np_text = results[-1]['Number Plate']
             (tw, th), _ = cv2.getTextSize(np_text, cv2.FONT_HERSHEY_SIMPLEX, 1.2, 3)
             cv2.putText(frame, np_text, (frame.shape[1] - tw - 20, 40), cv2.FONT_HERSHEY_SIMPLEX, 1.2, (255,255,255), 3)
+        # If a plate region is detected, also show it on the main display
+        if 'plate_region_magnified' in locals() and plate_region_magnified is not None:
+            # Resize the plate region to fit a small box (e.g., 200x60)
+            preview = cv2.resize(plate_region_magnified, (200, 60), interpolation=cv2.INTER_AREA)
+            # Place the preview at the top left corner of the main frame
+            frame[10:70, 10:210] = preview
         # Display the frame with bounding boxes and labels
-        cv2.imshow('Vehicle Detection', frame)
-        key = cv2.waitKey(1) & 0xFF
+        # Resize frame to fit window (e.g., width=900, keep aspect ratio)
+        display_width = 900
+        h, w = frame.shape[:2]
+        scale = display_width / w
+        display_frame = cv2.resize(frame, (display_width, int(h * scale)), interpolation=cv2.INTER_AREA)
+        cv2.imshow('Vehicle Detection', display_frame)
+        # Only wait for key if not already handled in fast forward
+        if not ('key' in locals() and key is not None):
+            key = cv2.waitKey(1) & 0xFF
         if key == ord('q') or key == 27:  # 27 is ESC
             break
         frame_num += 1
