@@ -1,53 +1,56 @@
-# Vehicle Number Plate Detection
+# Vibe Coding Vehicle Number Plate Detection
 
-This project uses YOLOv8 and Google Tesseract OCR to detect vehicles, recognize their number plates, classify vehicle type and color, and save the results to an Excel file. It also displays the video with bounding boxes and labels for each detected vehicle and number plate.
+This project is developed by **Vibe Coding** using **VS Code GitHub Copilot**.
 
-## Features
-- Detects vehicles (car, motorcycle, bus, truck) in video frames using YOLOv8
-- Recognizes number plates using Tesseract OCR
-- Classifies vehicle color (red, green, blue, other)
-- Displays bounding boxes and labels in real time
-- Saves results (frame, number plate, vehicle type, color) to Excel
-
-## Requirements
-- Python 3.8+
-- [Tesseract OCR](https://github.com/tesseract-ocr/tesseract) (install and set the path in `main.py`)
-- See `requirements.txt` for Python dependencies
-- YOLOv8 model file (`yolov8n.pt`) in the project directory
-
-## Usage
-1. Install dependencies:
-   ```sh
-   pip install -r requirements.txt
-   ```
-2. Install Tesseract OCR and update the path in `main.py` if needed:
-   ```python
-   pytesseract.pytesseract.tesseract_cmd = r'C:\Path\To\tesseract.exe'
-   ```
-3. Place your video file (e.g., `kaggle.mp4`) and YOLOv8 model file (`yolov8n.pt`) in the project directory.
-4. Run the script:
-   ```sh
-   python main.py
-   ```
-5. Press `q` or `ESC` to quit the video display.
-
-## Output
-- Annotated video display with bounding boxes and labels
-- Results saved to `output.xlsx`
-
-## Notes
-- The number plate region is estimated as the lower part of the vehicle bounding box.
-- For best OCR results, ensure Tesseract is properly installed and the path is set.
-- The script will display the recognized number plate at the top right of the screen for each frame.
-
-## Example
-```
-Frame | Number Plate | Vehicle Type | Vehicle Color
---------------------------------------------------
-   10 | WXY1234      | car         | Red
-   11 | BCD5678      | truck       | Blue
-```
+It detects and recognizes vehicle number plates (currently for trucks only) in video files using YOLOv8 and Tesseract OCR. The code is designed for use in a Windows environment and leverages OpenCV for image processing and display.
 
 ---
 
-**Author:** [Your Name]
+## Example Detected Plates
+
+Below are example outputs of detected and recognized number plates:
+
+| Example 1 | Example 2 |
+|-----------|-----------|
+| ![Detected Plate 262](detected_plate_262.png) | ![Detected Plate 625](detected_plate_625.png) |
+
+---
+
+## How to Use
+
+### 1. Prerequisites
+- Python 3.8 or newer
+- Install dependencies:
+  ```sh
+  pip install -r requirements.txt
+  ```
+- Download and install [Tesseract OCR](https://github.com/tesseract-ocr/tesseract) and update the path in `main.py` if needed:
+  ```python
+  pytesseract.pytesseract.tesseract_cmd = r'C:\Users\YOUR_USERNAME\AppData\Local\Programs\Tesseract-OCR\tesseract.exe'
+  ```
+- Place your YOLOv8 model file (e.g., `yolov8n.pt`) in the project directory.
+- Place your video file (e.g., `28293-369325244_small.mp4`) in the project directory.
+
+### 2. Running the Code
+- Open a terminal in the project directory.
+- Run the script:
+  ```sh
+  python main.py
+  ```
+- By default, the script processes the video file specified at the bottom of `main.py`:
+  ```python
+  if __name__ == "__main__":
+      main("28293-369325244_small.mp4", "output.xlsx")
+  ```
+  You can change the video filename and output Excel filename as needed.
+
+### 3. Output
+- The script will display a window showing the detection results frame by frame.
+- When a truck is detected, the detected number plate region will be shown both as a pop-up and as a preview in the main display.
+- The recognized number plate, vehicle type, and color for each frame are saved to `output.xlsx`.
+- Detected plate images with alphanumeric OCR results are saved as PNG files in the project directory.
+
+---
+
+- Developed with ❤️ by Vibe Coding
+- Powered by VS Code and GitHub Copilot
